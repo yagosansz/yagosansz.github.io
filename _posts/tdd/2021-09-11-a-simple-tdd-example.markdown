@@ -5,7 +5,7 @@ date:   2021-09-11 06:21:00 -0400
 categories: tdd ruby rails
 ---
 
-On this post we will build a calculator that adds two integers, where our development will be drinve by the tests we write using [RSpec](https://rspec.info/) as our test library.
+On this post we will build a calculator that adds two integers, where our development will be driven by the tests we write using [RSpec](https://rspec.info/) as our test library.
 
 In order to make our lives easier,  we will use `rspec/autorun` so we can write both the code and the tests for our calculator in the same `.rb` file. Ideally, we would create a `spec/calculator_spec.rb` file that would contain all of our test cases for our Calculator.
 
