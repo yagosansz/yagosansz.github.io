@@ -51,7 +51,7 @@ inherit_from:
 
 It's pretty common for organizations to define their own custom *.rubocop.yml* file. For instance, [Shopify has their own RuboCop](https://ruby-style-guide.shopify.dev/) template that is based on the Ruby Style Guide.
 
-I'd advise to start with a straigthforward template that you can tailor to your needs. When I was setting up my RuboCop configuration file for the first time, I used the two templates below as a guides:
+I'd advise to start with a straigthforward template that you can tailor to your needs. When I was setting up [my first RuboCop configuration file](https://github.com/yagosansz/alexandria/blob/main/.rubocop.yml), I used the two templates below as a guides:
 
 1. [ChaelCodes/ConfBuddies *.rubocop.yml*](https://github.com/ChaelCodes/ConfBuddies/blob/main/.rubocop.yml)
 
@@ -106,8 +106,6 @@ Metrics/LineLength:
 AsciiComments:
   Enabled: false
 ```
-
-3. [My first *.rubocop.yml* file](https://github.com/yagosansz/alexandria/blob/main/.rubocop.yml), which is still under construction!
 
 ## How to Run RuboCop?
 
