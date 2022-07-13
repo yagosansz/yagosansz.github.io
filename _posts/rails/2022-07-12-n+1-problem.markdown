@@ -1,0 +1,102 @@
+---
+layout: post
+title: "Yet Another Post About N + 1 Queries"
+date: 2022-07-12 03:31:00 -0400
+categories: rails
+---
+
+The `N + 1` query problem is a common performance bottleneck found in queries that are written using an [ORM (Object-Relational Mapping)](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) tool, such as ActiveRecord.
+
+The problem arises happens when N queries have to be executed, _for each association_, in addition to the first one made to fetch all the associated records.
+
+For instance, if we had the following relationship between `User` and `Appointment` models
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+ has_many :appointments
+end
+```
+
+```ruby
+# app/models/appointment.rb
+class Appointment < ApplicationRecord
+ belongs_to :user
+end
+```
+
+and executed the query below in our code
+
+```ruby
+Appointment.all.limit(5).each do |appointment|
+ puts "#{appointment.user.name} has an appointment at #{appointment.date}"
+end
+```
+
+this is what we would see in our rails console:
+
+```ruby
+Appointment Load (0.5ms)  SELECT "appointments".* FROM "appointments" LIMIT ?  [["LIMIT", 5]]
+ User Load (0.1ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+ User Load (0.1ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT ?  [["id", 3], ["LIMIT", 1]]
+ User Load (0.1ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT ?  [["id", 5], ["LIMIT", 1]]
+ User Load (0.1ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT ?  [["id", 7], ["LIMIT", 1]]
+ User Load (0.1ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT ?  [["id", 9], ["LIMIT", 1]]
+```
+
+The query above seems to be harmless, but imagine we had to load 1,000 appointments! We'd need to hit the database 1 time (to grab all appointments) plus 1,000 times (to grab each appointment's user), totalling 1,001 queries. In technical terms, the results are being lazily loaded, meaning that the "N" consecutive queries will be made as they are requested in `appointment.user.name`.
+
+## How to Reduce the Number of Independent Database Queries?
+
+A possible solution for this is to use `.includes`, which will eager load the query result, meaning that
+the related associations (parent and children) will be loaded all at once through only a few queries.
+
+For example, if we run the following code in the console
+
+```ruby
+Appointment.includes(:user).limit(5).each do |appointment|
+ puts "#{appointment.user.name} has an appointment at #{appointment.date}"
+end
+```
+
+this is what we would get back:
+
+```ruby
+Appointment Load (0.2ms)  SELECT "appointments".* FROM "appointments" LIMIT ?  [["LIMIT", 5]]
+ User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)  [["id", 1], ["id", 3], ["id", 5], ["id", 7], ["id", 9]]
+```
+
+As we can see from the result above, only 2 queries are being ran against the database, instead of 6 when the results were being lazily loaded.
+
+## Backing it Up with Data!
+
+At this point you may be wondering "Okay, enough talking! Where is the data showing that using `.includes` actually improves query performance?".
+
+When attempting to lazy load 100 users' appointments, we get the results below in miliseconds:
+
+```
+user     system      total        real
+0.101984   0.096377   0.198361 (  0.761556)
+```
+
+On the other hand, when we try eager loading the same 100 records, we get faster execution times:
+
+```
+user     system      total        real
+0.026250   0.010747   0.036997 (  0.078877)
+```
+
+If we take in consideration the total time, which is a sum of the time spent executing the code (user) plus the time spent in the kernel (system), eager loading the records is 5.36 times faster!
+
+You can read more about Ruby's benchmark module [here](https://blog.appsignal.com/2018/02/27/benchmarking-ruby-code.html).
+
+## How to Identify N + 1 Queries in an Application
+
+In order to find all those N + 1 queries that are slowing down in your application, the community recommends using the [Bullet gem](https://github.com/flyerhzm/bullet).
+
+## References
+
+- [Rails N+1 queries and eager loading](https://dev.to/junko911/rails-n-1-queries-and-eager-loading-10eh)
+- [Faster Rails: Eliminating N+1 queries](https://semaphoreci.com/blog/2017/08/09/faster-rails-eliminating-n-plus-one-queries.html)
+- [Benchmarking Ruby Code](https://blog.appsignal.com/2018/02/27/benchmarking-ruby-code.html)
+- [Ruby on Rails - Evitando N+1 Queries](https://www.youtube.com/watch?v=Dpr67siKV7s&list=PLqsayW8DhUmuXG3_ZTjaHkqdcx5XkviTo&index=5&t=215s)
